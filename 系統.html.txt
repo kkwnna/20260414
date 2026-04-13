@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日系線上點餐系統</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        earth: {
+                            bg: '#F4F1EA',
+                            card: 'rgba(255, 255, 255, 0.5)',
+                            text: '#5C4D43',
+                            btn: '#8E7E70',
+                            btnHover: '#7A6A5D',
+                            input: 'rgba(255, 255, 255, 0.6)',
+                            border: '#D9D2C9'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                        serif: ['"Noto Serif TC"', 'serif'],
+                    },
+                    boxShadow: {
+                        'soft': '0 20px 40px -15px rgba(92, 77, 67, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F4F1EA;
+        }
+
+        /* 夢幻背景光暈動畫 */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 10s infinite ease-in-out alternate;
+            z-index: -1;
+        }
+
+        .orb-1 { width: 400px; height: 400px; background: #E8DCCB; top: -100px; left: -100px; }
+        .orb-2 { width: 350px; height: 350px; background: #DCE1D8; bottom: -50px; right: -100px; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* 毛玻璃卡片 */
+        .glass-card {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* 自定義提示框動畫 */
+        .toast-enter { opacity: 0; transform: translate(-50%, 20px); }
+        .toast-active {
+            opacity: 1; transform: translate(-50%, 0);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* 頁面切換與捲軸樣式 */
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D9D2C9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8E7E70; }
+    </style>
+</head>
+<body class="min-h-screen relative font-sans text-earth-text overflow-x-hidden">
+
+    <!-- 夢幻背景光暈 -->
+    <div class="glow-orb orb-1 fixed"></div>
+    <div class="glow-orb orb-2 fixed"></div>
+
+    <!-- 右下角購物車按鈕 (預設隱藏) -->
+    <div id="cartBtnWrapper" class="fixed bottom-8 right-8 z-50 hidden transition-opacity duration-300">
+        <button onclick="goToCheckout()" class="bg-earth-btn text-white w-14 h-14 rounded-full shadow-lg hover:bg-earth-btnHover transition-all transform hover:scale-105 flex items-center justify-center relative">
+            <span class="text-2xl">🛒</span>
+            <span id="cartBadge" class="absolute -top-1 -right-1 bg-red-400 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-earth-bg">0</span>
+        </button>
+    </div>
+
+    <!-- 登入區塊 -->
+    <div id="loginSection" class="min-h-screen flex items-center justify-center transition-all duration-700 ease-in-out relative z-10">
+        <div class="glass-card bg-earth-card w-full max-w-sm p-10 rounded-[2rem] shadow-soft mx-4">
+            <!-- 標題區 -->
+            <div class="text-center mb-10">
+                <div class="inline-block mb-3">
+                    <svg class="w-8 h-8 text-earth-btn mx-auto opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-serif font-bold tracking-widest text-earth-text">歡迎光臨</h1>
+                <p class="text-xs tracking-widest mt-2 opacity-60">線上點餐系統</p>
+            </div>
+
+            <!-- 登入表單 -->
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label for="account" class="block text-sm font-medium tracking-wide mb-1 ml-1 opacity-80">帳號</label>
+                    <input type="text" id="account" required placeholder="請輸入電子信箱或手機" 
+                        class="w-full px-5 py-3 rounded-2xl bg-earth-input border border-earth-border focus:outline-none focus:ring-2 focus:ring-earth-btn focus:border-transparent transition-all placeholder:text-sm placeholder:opacity-50">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium tracking-wide mb-1 ml-1 opacity-80">密碼</label>
+                    <input type="password" id="password" required placeholder="請輸入密碼" 
+                        class="w-full px-5 py-3 rounded-2xl bg-earth-input border border-earth-border focus:outline-none focus:ring-2 focus:ring-earth-btn focus:border-transparent transition-all placeholder:text-sm placeholder:opacity-50">
+                </div>
+
+                <div class="pt-6 space-y-4">
+                    <button type="submit" 
+                        class="w-full py-3.5 bg-earth-btn hover:bg-earth-btnHover text-white rounded-2xl tracking-[0.2em] font-medium transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        開始點餐
+                    </button>
+                    
+                    <button type="button" id="joinBtn"
+                        class="w-full py-3.5 bg-transparent border border-earth-btn text-earth-btn hover:bg-earth-btn hover:text-white rounded-2xl tracking-[0.2em] font-medium transition-all duration-300">
+                        加入會員
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div> <!-- 結束 loginSection -->
+
+    <!-- 主選單區塊 (預設隱藏) -->
+    <div id="menuSection" class="hidden opacity-0 transition-opacity duration-700 ease-in-out w-full max-w-5xl mx-auto px-6 pt-28 pb-32 relative z-10">
+        
+        <!-- 頂部導覽列 -->
+        <nav class="fixed top-0 left-0 w-full glass-card bg-earth-bg/70 z-50 shadow-sm backdrop-blur-md">
+            <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+                <div class="font-serif font-bold tracking-widest text-lg text-earth-btn">和風食事</div>
+                <ul class="flex space-x-4 md:space-x-8 text-sm font-medium tracking-widest">
+                    <li><a href="#mainCourse" class="hover:text-earth-btn transition-colors">主餐</a></li>
+                    <li><a href="#desserts" class="hover:text-earth-btn transition-colors">甜點</a></li>
+                    <li><a href="#drinks" class="hover:text-earth-btn transition-colors">飲品</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- 主餐分類 -->
+        <section id="mainCourse" class="scroll-mt-28 mb-24">
+            <div class="text-center mb-10">
+                <h2 class="text-2xl font-serif font-bold tracking-widest inline-block relative">
+                    主餐
+                    <span class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-earth-border"></span>
+                </h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onclick="addToCart('咖哩飯', 180)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍛</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">咖哩飯</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$180</p>
+                    <p class="text-xs opacity-60 tracking-wider">濃郁香料與野菜的完美融合</p>
+                </div>
+                <div onclick="addToCart('義大利麵', 220)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍝</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">義大利麵</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$220</p>
+                    <p class="text-xs opacity-60 tracking-wider">和風明太子與奶油的協奏曲</p>
+                </div>
+                <div onclick="addToCart('湯泡飯', 150)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🥣</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">湯泡飯</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$150</p>
+                    <p class="text-xs opacity-60 tracking-wider">暖胃清爽的柴魚高湯茶泡飯</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 甜點分類 -->
+        <section id="desserts" class="scroll-mt-28 mb-24">
+            <div class="text-center mb-10">
+                <h2 class="text-2xl font-serif font-bold tracking-widest inline-block relative">
+                    甜點
+                    <span class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-earth-border"></span>
+                </h2>
+                <p class="text-xs opacity-50 mt-6 tracking-widest">點擊加入購物車，或懸停預覽特寫</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onclick="addToCart('提拉米蘇', 120); showDessertPattern('提拉米蘇', '🍰')" onmouseenter="showDessertPattern('提拉米蘇', '🍰')" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍰</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">提拉米蘇</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$120</p>
+                    <p class="text-xs opacity-60 tracking-wider">微苦可可與馬斯卡彭起司</p>
+                </div>
+                <div onclick="addToCart('布朗尼', 100); showDessertPattern('布朗尼', '🍫')" onmouseenter="showDessertPattern('布朗尼', '🍫')" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍫</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">布朗尼</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$100</p>
+                    <p class="text-xs opacity-60 tracking-wider">溫熱濃郁的黑巧克力風味</p>
+                </div>
+                <div onclick="addToCart('布丁', 80); showDessertPattern('布丁', '🍮')" onmouseenter="showDessertPattern('布丁', '🍮')" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍮</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">布丁</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$80</p>
+                    <p class="text-xs opacity-60 tracking-wider">手工焦糖昭和風純粹口感</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 飲品分類 -->
+        <section id="drinks" class="scroll-mt-28 mb-24">
+            <div class="text-center mb-10">
+                <h2 class="text-2xl font-serif font-bold tracking-widest inline-block relative">
+                    飲品
+                    <span class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-earth-border"></span>
+                </h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onclick="addToCart('奶茶', 60)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🧋</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">奶茶</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$60</p>
+                    <p class="text-xs opacity-60 tracking-wider">特調伯爵鮮奶茶</p>
+                </div>
+                <div onclick="addToCart('紅茶', 50)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">☕</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">紅茶</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$50</p>
+                    <p class="text-xs opacity-60 tracking-wider">靜岡產手作焙茶</p>
+                </div>
+                <div onclick="addToCart('綠茶', 50)" class="glass-card bg-earth-card p-8 rounded-[2rem] text-center cursor-pointer hover:-translate-y-2 transition-all duration-300 hover:shadow-md border border-earth-border/50 group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition-transform drop-shadow-sm">🍵</div>
+                    <h3 class="font-serif font-bold tracking-widest text-lg mb-1">綠茶</h3>
+                    <p class="text-earth-btn font-bold tracking-wider mb-2">$50</p>
+                    <p class="text-xs opacity-60 tracking-wider">宇治抹茶玄米茶</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 頁面尾端甜點展示區 -->
+        <div id="dessertShowcase" class="mt-12 p-12 border border-earth-border rounded-[3rem] glass-card text-center transition-all duration-500 transform scale-95 opacity-50 bg-earth-card/30">
+            <p class="text-xs tracking-[0.3em] opacity-40 mb-6 uppercase">Sweet Treat</p>
+            <div id="dessertIcon" class="text-7xl mb-6 transition-transform duration-500 hover:scale-110 drop-shadow-md">✨</div>
+            <div id="dessertName" class="font-serif text-2xl tracking-widest text-earth-btn">尚未選擇甜點</div>
+            <p class="text-xs tracking-widest opacity-50 mt-4">與夢幻般的甜點來場邂逅</p>
+        </div>
+    </div> <!-- 結束 menuSection -->
+
+    <!-- 結帳區塊 (預設隱藏) -->
+    <div id="checkoutSection" class="hidden opacity-0 transition-opacity duration-700 ease-in-out w-full max-w-2xl mx-auto px-6 pt-24 pb-32 relative z-10">
+        <div class="glass-card bg-earth-card p-8 md:p-12 rounded-[2rem] shadow-soft">
+            <h2 class="text-2xl font-serif font-bold tracking-widest text-center mb-8">結帳確認</h2>
+
+            <!-- 已點餐點列表 -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold tracking-widest opacity-80 mb-4 border-b border-earth-border pb-2">已點清單</h3>
+                <div id="cartItemsList" class="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2">
+                    <!-- JS 動態插入餐點 -->
+                </div>
+                <div class="flex justify-between items-center border-t border-earth-border/50 pt-4 font-bold text-lg text-earth-btn">
+                    <span class="tracking-widest">總計金額</span>
+                    <span id="cartTotal">$0</span>
+                </div>
+            </div>
+
+            <!-- 付款方式 -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold tracking-widest opacity-80 mb-3">付款方式</h3>
+                <div class="flex gap-4">
+                    <label class="flex-1 cursor-pointer">
+                        <input type="radio" name="payment" value="online" class="peer sr-only" checked>
+                        <div class="p-4 rounded-xl border border-earth-border text-center peer-checked:bg-earth-btn peer-checked:text-white transition-colors">
+                            線上付款
+                        </div>
+                    </label>
+                    <label class="flex-1 cursor-pointer">
+                        <input type="radio" name="payment" value="onsite" class="peer sr-only">
+                        <div class="p-4 rounded-xl border border-earth-border text-center peer-checked:bg-earth-btn peer-checked:text-white transition-colors">
+                            現場付款
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 集點選項 -->
+            <div class="mb-8 p-5 rounded-xl border border-earth-border bg-earth-bg/30">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" id="pointsCheckbox" class="w-5 h-5 accent-earth-btn rounded border-earth-border cursor-pointer">
+                    <span class="text-sm font-bold tracking-widest opacity-80">是否需要集點？</span>
+                </label>
+                <div id="phoneInputWrapper" class="mt-4 hidden transition-all duration-300">
+                    <input type="tel" id="phoneNumber" placeholder="請輸入手機號碼 (例如: 0912345678)" class="w-full px-5 py-3 rounded-xl bg-earth-input border border-earth-border focus:outline-none focus:ring-2 focus:ring-earth-btn transition-all placeholder:text-sm placeholder:opacity-50">
+                </div>
+            </div>
+
+            <!-- 評論留言 -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold tracking-widest opacity-80 mb-3">留言與備註 (非必填)</h3>
+                <textarea placeholder="有什麼想告訴我們的嗎？例如：不加蔥、餐具需求等..." rows="3" class="w-full px-5 py-3 rounded-xl bg-earth-input border border-earth-border focus:outline-none focus:ring-2 focus:ring-earth-btn transition-all placeholder:text-sm placeholder:opacity-50 resize-none"></textarea>
+            </div>
+
+            <!-- 按鈕區 -->
+            <div class="flex gap-4 pt-4">
+                <button onclick="backToMenu()" class="flex-1 py-3.5 bg-transparent border border-earth-btn text-earth-btn hover:bg-earth-btn hover:text-white rounded-2xl tracking-[0.2em] font-medium transition-all duration-300">
+                    繼續點餐
+                </button>
+                <button onclick="completeOrder()" class="flex-1 py-3.5 bg-earth-btn hover:bg-earth-btnHover text-white rounded-2xl tracking-[0.2em] font-medium transition-all duration-300 shadow-md transform hover:-translate-y-0.5">
+                    確認結帳
+                </button>
+            </div>
+        </div>
+    </div> <!-- 結束 checkoutSection -->
+
+    <!-- 點餐成功區塊 (預設隱藏) -->
+    <div id="successSection" class="hidden opacity-0 transition-opacity duration-700 ease-in-out min-h-screen flex items-center justify-center relative z-10">
+        <div class="glass-card bg-earth-card p-12 rounded-[2rem] shadow-soft text-center max-w-sm mx-4">
+            <div class="text-6xl mb-6">🌸</div>
+            <h2 class="text-2xl font-serif font-bold tracking-widest mb-4 text-earth-btn">點餐完成！</h2>
+            <p class="text-sm opacity-70 tracking-wider mb-8">感謝您的訂購，我們將盡快為您準備餐點。</p>
+            <p class="text-xs opacity-40 tracking-widest">今日もお疲れ様でした</p>
+        </div>
+    </div>
+
+    <!-- 自定義訊息提示框 (Toast) -->
+    <div id="toast" class="fixed bottom-8 left-1/2 toast-enter bg-earth-text text-earth-bg px-8 py-3 rounded-full shadow-lg z-50 pointer-events-none tracking-wider text-sm flex items-center gap-3 hidden">
+        <svg class="w-5 h-5 text-earth-bg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span id="toastMessage">訊息提示</span>
+    </div>
+
+    <script>
+        // 購物車資料
+        let cart = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
+            const joinBtn = document.getElementById('joinBtn');
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const pointsCheckbox = document.getElementById('pointsCheckbox');
+            const phoneInputWrapper = document.getElementById('phoneInputWrapper');
+            let toastTimeout;
+
+            // 顯示提示訊息的函數
+            window.showToast = function(message) {
+                toastMessage.textContent = message;
+                toast.classList.remove('hidden');
+                void toast.offsetWidth; 
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-active');
+
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove('toast-active');
+                    toast.classList.add('toast-enter');
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 400);
+                }, 3000);
+            }
+
+            // 處理「開始點餐」
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                showToast(`登入成功，準備進入菜單！`);
+
+                setTimeout(() => {
+                    const loginSection = document.getElementById('loginSection');
+                    const menuSection = document.getElementById('menuSection');
+                    
+                    loginSection.classList.add('opacity-0', 'pointer-events-none');
+                    
+                    setTimeout(() => {
+                        loginSection.classList.add('hidden');
+                        menuSection.classList.remove('hidden');
+                        void menuSection.offsetWidth;
+                        menuSection.classList.remove('opacity-0');
+                        window.scrollTo(0, 0);
+                    }, 700);
+                }, 1000);
+            });
+
+            // 處理「加入會員」
+            joinBtn.addEventListener('click', () => {
+                showToast('正在為您導向會員註冊頁面...');
+            });
+
+            // 甜點展示互動邏輯
+            window.showDessertPattern = function(name, icon) {
+                const showcase = document.getElementById('dessertShowcase');
+                const iconEl = document.getElementById('dessertIcon');
+                const nameEl = document.getElementById('dessertName');
+                
+                showcase.classList.remove('opacity-50', 'scale-95', 'bg-earth-card/30');
+                showcase.classList.add('opacity-100', 'scale-100', 'bg-white/60');
+                
+                iconEl.style.transform = 'scale(0.5)';
+                iconEl.style.opacity = '0';
+                
+                setTimeout(() => {
+                    iconEl.textContent = icon;
+                    nameEl.textContent = name;
+                    
+                    iconEl.style.transform = 'scale(1.2)';
+                    iconEl.style.opacity = '1';
+                    
+                    setTimeout(() => {
+                        iconEl.style.transform = 'scale(1)';
+                    }, 200);
+                }, 250);
+            };
+
+            // 加入購物車邏輯
+            window.addToCart = function(name, price) {
+                cart.push({ name, price });
+                updateCartUI();
+                showToast(`成功加入購物車：${name}`);
+            };
+
+            // 更新購物車按鈕與徽章
+            function updateCartUI() {
+                const cartBtnWrapper = document.getElementById('cartBtnWrapper');
+                const cartBadge = document.getElementById('cartBadge');
+                
+                cartBadge.textContent = cart.length;
+                
+                if (cart.length > 0) {
+                    cartBtnWrapper.classList.remove('hidden');
+                } else {
+                    cartBtnWrapper.classList.add('hidden');
+                }
+            }
+
+            // 前往結帳頁面
+            window.goToCheckout = function() {
+                if (cart.length === 0) {
+                    showToast('購物車還是空的喔！');
+                    return;
+                }
+                
+                renderCartItems();
+                
+                const menuSection = document.getElementById('menuSection');
+                const checkoutSection = document.getElementById('checkoutSection');
+                const cartBtnWrapper = document.getElementById('cartBtnWrapper');
+                
+                menuSection.classList.add('opacity-0');
+                cartBtnWrapper.classList.add('hidden'); // 在結帳頁隱藏浮動按鈕
+                
+                setTimeout(() => {
+                    menuSection.classList.add('hidden');
+                    checkoutSection.classList.remove('hidden');
+                    void checkoutSection.offsetWidth;
+                    checkoutSection.classList.remove('opacity-0');
+                    window.scrollTo(0, 0);
+                }, 500);
+            };
+
+            // 渲染結帳頁的餐點清單
+            function renderCartItems() {
+                const listContainer = document.getElementById('cartItemsList');
+                const totalContainer = document.getElementById('cartTotal');
+                let html = '';
+                let total = 0;
+
+                cart.forEach((item, index) => {
+                    total += item.price;
+                    html += `
+                        <div class="flex justify-between items-center bg-earth-input p-3 rounded-lg border border-earth-border/50">
+                            <span class="tracking-wide">${item.name}</span>
+                            <span class="font-medium opacity-80">$${item.price}</span>
+                        </div>
+                    `;
+                });
+
+                listContainer.innerHTML = html;
+                totalContainer.textContent = `$${total}`;
+            }
+
+            // 繼續點餐 (返回選單)
+            window.backToMenu = function() {
+                const menuSection = document.getElementById('menuSection');
+                const checkoutSection = document.getElementById('checkoutSection');
+                
+                checkoutSection.classList.add('opacity-0');
+                
+                setTimeout(() => {
+                    checkoutSection.classList.add('hidden');
+                    menuSection.classList.remove('hidden');
+                    void menuSection.offsetWidth;
+                    menuSection.classList.remove('opacity-0');
+                    updateCartUI(); // 恢復購物車按鈕顯示
+                    window.scrollTo(0, 0);
+                }, 500);
+            };
+
+            // 監聽集點 Checkbox 控制手機輸入框顯示
+            pointsCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    phoneInputWrapper.classList.remove('hidden');
+                } else {
+                    phoneInputWrapper.classList.add('hidden');
+                }
+            });
+
+            // 完成訂單
+            window.completeOrder = function() {
+                // 檢查是否勾選集點但未輸入電話
+                if (pointsCheckbox.checked) {
+                    const phone = document.getElementById('phoneNumber').value;
+                    if (!phone.trim()) {
+                        showToast('請輸入手機號碼以便為您集點喔！');
+                        return;
+                    }
+                }
+
+                const checkoutSection = document.getElementById('checkoutSection');
+                const successSection = document.getElementById('successSection');
+
+                checkoutSection.classList.add('opacity-0');
+
+                setTimeout(() => {
+                    checkoutSection.classList.add('hidden');
+                    successSection.classList.remove('hidden');
+                    void successSection.offsetWidth;
+                    successSection.classList.remove('opacity-0');
+                    window.scrollTo(0, 0);
+                    
+                    // 清空購物車
+                    cart = [];
+                    updateCartUI();
+                }, 500);
+            };
+        });
+    </script>
+</body>
+</html>
